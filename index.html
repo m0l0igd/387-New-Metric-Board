@@ -1,0 +1,890 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title> 387-A TECH ARENA</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#06080f;--surf:#0d1220;--s2:#131928;--s3:#1a2235;--bdr:#1e2d45;--txt:#d4e4ff;--sub:#4a6088;
+  --neon:#00d4ff;--grn:#00ff88;--red:#ff3366;--amb:#ffaa00;--pur:#aa44ff;--gold:#ffc220;
+  --gm:#0077ee;--hv:#00ccaa;--fe:#ff8800}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font-family:'Inter',-apple-system,sans-serif;font-size:13px;display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 40% at 50% 0%,rgba(0,212,255,.07) 0%,transparent 55%);pointer-events:none;z-index:0}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;align-items:center;gap:12px;padding:10px 18px;background:rgba(6,8,15,.96);
+  border-bottom:1px solid rgba(0,212,255,.15);box-shadow:0 2px 24px rgba(0,0,0,.5);z-index:10;flex-shrink:0;flex-wrap:wrap}
+.logo{font-weight:900;font-size:1.05rem;letter-spacing:.02em;white-space:nowrap;
+  background:linear-gradient(90deg,var(--neon),var(--pur),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.live-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);border-radius:20px;padding:2px 9px;font-size:.58rem;color:var(--grn);letter-spacing:.08em}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--grn);animation:blink .9s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.topbar-meta{font-size:.62rem;color:var(--sub);line-height:1.7}
+.topbar-meta b{color:var(--gold)}
+.period-bar{display:flex;gap:0;background:var(--s2);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-left:auto}
+.pb{background:none;border:none;border-right:1px solid var(--bdr);padding:5px 13px;font-size:.62rem;color:var(--sub);cursor:pointer;letter-spacing:.06em;transition:all .2s;white-space:nowrap}
+.pb:last-child{border-right:none}.pb:hover{color:var(--neon);background:rgba(0,212,255,.06)}
+.pb.on{background:rgba(0,212,255,.14);color:var(--neon)}
+#clock{font-size:.6rem;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── KPI STRIP ── */
+.kpi-strip{display:flex;overflow-x:auto;background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;scrollbar-width:none}
+.kpi-strip::-webkit-scrollbar{display:none}
+.kstat{flex:1;min-width:105px;padding:7px 12px;border-right:1px solid var(--bdr);text-align:center;position:relative}
+.kstat:last-child{border:none}
+.kstat-l{font-size:.52rem;color:var(--sub);text-transform:uppercase;letter-spacing:.09em}
+.kstat-v{font-size:1.2rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.kstat-u{font-size:.52rem;color:var(--sub);margin-top:1px}
+.kstat-bar{position:absolute;bottom:0;left:0;height:2px;width:0;transition:width 1.4s cubic-bezier(.16,1,.3,1)}
+
+/* ── BODY (left + right) ── */
+.body{display:flex;flex:1;overflow:hidden;position:relative;z-index:1}
+
+/* ── LEFT PANEL ── */
+.left{width:280px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--bdr);background:var(--surf);transition:width .3s cubic-bezier(.4,0,.2,1);overflow:hidden;position:relative}
+.left.collapsed{width:0;border-right:none}
+.left-inner{min-width:280px;display:flex;flex-direction:column;flex:1;overflow:hidden}
+
+/* ── Collapse button — always fixed to viewport ── */
+.collapse-btn{
+  position:fixed;top:50vh;left:0;transform:translateY(-50%);
+  z-index:9999;width:28px;height:48px;
+  background:var(--s2);border:1px solid var(--bdr);border-left:none;
+  border-radius:0 10px 10px 0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--neon);font-size:.9rem;
+  transition:left .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:3px 0 14px rgba(0,0,0,.6)}
+.collapse-btn:hover{background:var(--s3);border-color:var(--neon)}
+.collapse-btn.open{left:280px}
+
+/* ══ MOBILE DRAWER ══════════════════════════════════════════
+   On mobile the left panel is a fixed-position drawer.
+   The right panel scrolls independently.
+   The FAB button is fixed bottom-right, always visible.
+═══════════════════════════════════════════════ */
+@media(max-width:768px){
+  /* Left panel becomes a fixed drawer, slides in from left */
+  .left{
+    position:fixed!important;
+    top:0;left:0;height:100%!important;
+    width:82vw!important;max-width:320px!important;
+    transform:translateX(-105%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1)!important;
+    z-index:800;overflow-y:auto!important;
+    border-right:1px solid var(--bdr)!important}
+  .left.open{transform:translateX(0)!important}
+  /* width collapse trick no longer needed on mobile */
+  .left.collapsed{width:82vw!important;transform:translateX(-105%)!important}
+  .left-inner{min-width:unset!important}
+  /* Right panel scrolls on its own */
+  .right{overflow-y:auto!important}
+  .spotlight{height:auto!important;overflow:visible!important;padding:12px!important}
+  .sp-content{overflow:visible!important;height:auto!important}
+  .tab-pane.on{display:block!important;height:auto!important;overflow:visible!important}
+  /* FAB toggle — bright, fixed, bottom-right, impossible to miss */
+  .collapse-btn{
+    position:fixed!important;
+    bottom:22px!important;right:22px!important;
+    left:auto!important;top:auto!important;
+    transform:none!important;
+    width:54px!important;height:54px!important;
+    border-radius:50%!important;
+    background:#00d4ff!important;
+    color:#000!important;
+    font-size:1.3rem!important;
+    border:none!important;
+    box-shadow:0 0 0 4px rgba(0,212,255,.25),0 6px 24px rgba(0,0,0,.5)!important;
+    z-index:900!important}
+  /* Layout tweaks */
+  .sp-metrics{grid-template-columns:repeat(2,1fr)!important}
+  .det-grid{grid-template-columns:1fr 1fr!important}
+  .radar-wrap{height:250px!important}
+  .trade-bar{grid-template-columns:repeat(2,1fr)!important}
+  .topbar{flex-wrap:wrap}
+  .kpi-strip{overflow-x:auto}
+}
+/* Backdrop: hidden everywhere */
+.drawer-backdrop{display:none!important}
+}
+.left-ctrl{padding:10px 12px;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.srch{background:var(--s2);border:1px solid var(--bdr);border-radius:20px;padding:6px 12px;color:var(--txt);font-size:.75rem;outline:none;width:100%;transition:border-color .2s}
+.srch:focus{border-color:var(--neon)}
+.role-tabs{display:flex;gap:4px}
+.rtab{flex:1;background:var(--s2);border:1px solid var(--bdr);border-radius:7px;padding:4px 2px;font-size:.58rem;color:var(--sub);cursor:pointer;text-align:center;transition:all .2s;white-space:nowrap}
+.rtab:hover{border-color:var(--neon);color:var(--neon)}
+.rtab.on{background:rgba(0,212,255,.1);border-color:var(--neon);color:var(--neon)}
+.lb-list{overflow-y:auto;flex:1;padding:6px}
+.lb-section-hdr{font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--sub);padding:8px 6px 4px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--bdr);margin-top:4px}
+.lb-section-hdr:first-child{border-top:none;margin-top:0}
+.lb-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;cursor:pointer;transition:all .2s;position:relative;margin-bottom:2px}
+.lb-row:hover{background:var(--s2)}.lb-row.active{background:var(--s3);border:1px solid rgba(0,212,255,.25)}
+.lb-rank{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0}
+.rk1{background:rgba(255,194,32,.2);color:var(--gold);border:1px solid rgba(255,194,32,.4)}
+.rk2{background:rgba(192,192,192,.12);color:#bbb;border:1px solid rgba(192,192,192,.25)}
+.rk3{background:rgba(205,127,50,.12);color:#cd7f32;border:1px solid rgba(205,127,50,.3)}
+.rkn{background:var(--s2);color:var(--sub);border:1px solid var(--bdr);font-size:.6rem}
+.lb-av{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.7rem;color:#fff;flex-shrink:0}
+.lb-info{flex:1;min-width:0}
+.lb-name{font-weight:600;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-meta{font-size:.56rem;color:var(--sub)}
+.lb-dots{display:flex;gap:3px;flex-wrap:nowrap}
+.ld{width:5px;height:5px;border-radius:2px;flex-shrink:0}
+.lb-score{font-size:.65rem;font-weight:800;color:var(--sub);white-space:nowrap}
+
+/* ── RIGHT PANEL – Spotlight ── */
+.right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.spotlight{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:16px 20px 0}
+
+/* hero top */
+.sp-hero{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-shrink:0}
+.sp-av{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;color:#fff;position:relative;flex-shrink:0}
+.sp-av-ring{position:absolute;inset:-3px;border-radius:17px;border:2px solid;opacity:.5;animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sp-name{font-size:1.15rem;font-weight:800;letter-spacing:-.01em}
+.sp-role{font-size:.65rem;color:var(--sub);margin-top:3px}
+.sp-badge{font-size:1.4rem;margin-left:auto}
+.sp-allok{font-size:.62rem;color:var(--grn);margin-top:4px;display:flex;align-items:center;gap:4px}
+
+/* metric tiles */
+.sp-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;flex-shrink:0}
+.sm{background:var(--s2);border-radius:12px;padding:12px 14px;border:1px solid var(--bdr);position:relative;overflow:hidden;transition:border-color .25s}
+.sm:hover{border-color:rgba(0,212,255,.3)}
+.sm-label{font-size:.53rem;text-transform:uppercase;letter-spacing:.1em;color:var(--sub);margin-bottom:6px}
+.sm-value{font-size:1.4rem;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.sm-goal{font-size:.52rem;color:var(--sub);margin-top:4px}
+.sm-bar{height:3px;border-radius:2px;margin-top:8px;width:0;transition:width 1.1s cubic-bezier(.16,1,.3,1)}
+.sm-glow{position:absolute;inset:0;border-radius:12px;opacity:.05;pointer-events:none}
+
+/* tabs */
+.sp-tabs{display:flex;gap:0;background:var(--s2);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;margin-bottom:12px;flex-shrink:0}
+.sptab{flex:1;background:none;border:none;border-right:1px solid var(--bdr);padding:8px 10px;font-size:.68rem;color:var(--sub);cursor:pointer;transition:all .2s;letter-spacing:.04em}
+.sptab:last-child{border:none}.sptab:hover{color:var(--neon);background:rgba(0,212,255,.05)}
+.sptab.on{color:var(--neon);background:rgba(0,212,255,.1)}
+
+/* tab content */
+.sp-content{flex:1;overflow:hidden;position:relative}
+.tab-pane{display:none;height:100%;overflow-y:auto;padding-bottom:12px}
+.tab-pane.on{display:block}
+
+/* detail grid */
+.det-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.dc{background:var(--s2);border-radius:10px;padding:10px 12px;border:1px solid var(--bdr)}
+.dl{font-size:.55rem;text-transform:uppercase;color:var(--sub);letter-spacing:.06em;margin-bottom:4px}
+.dv{font-size:1rem;font-weight:800}.dg{font-size:.57rem;color:var(--sub);margin-top:2px}.ds{font-size:.55rem;color:var(--sub);margin-top:2px}
+.dv.ok{color:var(--grn)}.dv.bad{color:var(--red)}
+.radar-wrap{background:var(--s2);border-radius:12px;padding:14px;height:220px;border:1px solid var(--bdr)}
+
+/* WO table */
+.wo-filters{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.wf{background:var(--s2);border:1px solid var(--bdr);border-radius:14px;padding:3px 11px;font-size:.6rem;color:var(--sub);cursor:pointer;transition:all .2s}
+.wf.on,.wf:hover{border-color:var(--pur);color:var(--pur);background:rgba(170,68,255,.08)}
+.wo-tbl{width:100%;border-collapse:collapse}
+.wo-tbl thead th{background:var(--s2);padding:7px 9px;font-size:.57rem;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);text-align:left;border-bottom:1px solid var(--bdr);cursor:pointer;white-space:nowrap;position:sticky;top:0}
+.wo-tbl thead th:hover{color:var(--neon)}
+.wo-tbl tbody tr{border-bottom:1px solid rgba(30,45,74,.4);transition:background .12s;animation:ri .25s ease backwards}
+@keyframes ri{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.wo-tbl tbody tr:hover{background:var(--s2)}
+.wo-tbl td{padding:8px 9px;font-size:.7rem;vertical-align:middle}
+.wono{font-size:.62rem;color:var(--neon);letter-spacing:.04em}
+.sla-ok{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);color:var(--grn);border-radius:5px;padding:1px 7px;font-size:.58rem}
+.sla-ov{background:rgba(255,51,102,.1);border:1px solid rgba(255,51,102,.25);color:var(--red);border-radius:5px;padding:1px 7px;font-size:.58rem}
+.sla-ms{background:rgba(74,96,136,.1);border:1px solid rgba(74,96,136,.25);color:var(--sub);border-radius:5px;padding:1px 7px;font-size:.58rem}
+.pri{border-radius:4px;padding:1px 6px;font-size:.57rem;font-weight:700}
+.pri-Pe{background:rgba(255,51,102,.2);color:var(--red)}.pri-P1{background:rgba(255,170,0,.15);color:var(--amb)}
+.pri-P2{background:rgba(0,212,255,.1);color:var(--neon)}.pri-P3{background:rgba(170,68,255,.1);color:var(--pur)}.pri-P4{color:var(--sub)}
+.rec-tag{background:rgba(255,170,0,.1);border:1px solid rgba(255,170,0,.3);color:var(--amb);border-radius:5px;padding:1px 7px;font-size:.57rem}
+.dtcb{display:inline-block;width:50px;height:4px;background:rgba(255,255,255,.07);border-radius:2px;vertical-align:middle;margin-left:5px;overflow:hidden}
+.dtcb-f{height:100%;border-radius:2px}
+
+/* Focus items */
+.fi{border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1px solid;animation:ri .3s ease backwards}
+.fi.crit{background:rgba(255,51,102,.05);border-color:rgba(255,51,102,.2)}
+.fi.warn{background:rgba(255,170,0,.04);border-color:rgba(255,170,0,.18)}
+.fi.good{background:rgba(0,255,136,.03);border-color:rgba(0,255,136,.15)}
+.fi-hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.fi-badge{margin-left:auto;font-size:.55rem;padding:2px 8px;border-radius:6px;font-weight:700}
+.fi-badge.crit{background:rgba(255,51,102,.2);color:var(--red)}.fi-badge.warn{background:rgba(255,170,0,.15);color:var(--amb)}.fi-badge.good{background:rgba(0,255,136,.1);color:var(--grn)}
+.fi-vals{display:flex;gap:14px;margin-bottom:6px;font-size:.63rem}
+.fi-vl{font-size:.5rem;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px}
+.fi-vv{font-weight:700}
+.fi-tips{font-size:.63rem;color:var(--sub);line-height:1.8;border-top:1px solid rgba(255,255,255,.05);padding-top:7px}
+.fi-tips li{margin-left:14px}
+.fi-bar{background:rgba(255,255,255,.06);border-radius:2px;height:3px;margin-top:8px;overflow:hidden}
+.fi-bar-f{height:100%;border-radius:2px;transition:width 1s cubic-bezier(.16,1,.3,1)}
+
+/* trade avg row */
+.lb-trade-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;cursor:pointer;transition:all .2s;margin-bottom:2px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}
+.lb-trade-row:hover{background:var(--s2);border-color:rgba(255,255,255,.1)}
+.lb-trade-row.active{background:var(--s3);border-color:rgba(0,212,255,.3)}
+.lb-trade-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;border:1px solid rgba(255,255,255,.1)}
+.trade-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:10px 20px;background:rgba(6,8,15,.6);border-top:1px solid var(--bdr);flex-shrink:0}
+.tb-stat{background:var(--s2);border-radius:8px;padding:7px 10px;border:1px solid var(--bdr);text-align:center}
+.tb-l{font-size:.5rem;text-transform:uppercase;letter-spacing:.08em;color:var(--sub)}
+.tb-v{font-size:.95rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
+.tb-g{font-size:.5rem;color:var(--sub);margin-top:1px}
+
+/* placeholder */
+.no-select{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--sub);gap:10px}
+.no-select-ico{font-size:3rem;opacity:.3}
+
+/* confetti */
+.cp{position:fixed;pointer-events:none;z-index:9999;border-radius:2px;animation:cpf linear forwards}
+@keyframes cpf{0%{opacity:1;transform:translateY(-10px) rotate(0)}100%{opacity:0;transform:translateY(110vh) rotate(720deg)}}
+
+@media(max-width:700px){.left{width:220px}.sp-metrics{grid-template-columns:repeat(3,1fr)}.det-grid{grid-template-columns:1fr 1fr}}
+</style></head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span style="font-size:1.5rem;filter:drop-shadow(0 0 10px #ffc220)">⚡</span>
+  <div class="logo">387-A TECH ARENA</div>
+  <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+  <div class="topbar-meta">Manager: <b id="mgr"></b> &nbsp;·&nbsp; <span id="period-lbl"></span></div>
+  <span id="clock"></span>
+  <div class="period-bar">
+    <button class="pb on" onclick="setPeriod(30,this)">30D</button>
+    <button class="pb" onclick="setPeriod(7,this)">7D</button>
+    <button class="pb" onclick="setPeriod(1,this)">24H</button>
+  </div>
+  <button style="background:rgba(170,68,255,.1);border:1px solid rgba(170,68,255,.3);border-radius:8px;padding:5px 12px;color:var(--pur);cursor:pointer;font-size:.65rem" onclick="burst()">🎉</button>
+</div>
+
+<!-- KPI STRIP -->
+<div class="kpi-strip" id="kpi-strip"></div>
+
+<!-- Mobile drawer backdrop -->
+<div class="drawer-backdrop" id="drawer-backdrop" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar toggle button - must be before <script> so JS can find it -->
+<button class="collapse-btn" id="collapse-btn" onclick="toggleSidebar()">&#9776;</button>
+
+<!-- BODY -->
+<div class="body">
+
+  <!-- LEFT: Leaderboard -->
+  <div class="left" id="left-panel">
+    <div class="left-inner">
+      <div class="left-ctrl">
+        <input class="srch" id="srch" placeholder="⚡ Search…" oninput="doSearch(this.value)">
+        <div class="role-tabs">
+          <button class="rtab on" onclick="setRole('All',this)">All</button>
+          <button class="rtab" onclick="setRole('GM',this)">🔧 GM</button>
+          <button class="rtab" onclick="setRole('HVACR',this)">❄️ HV</button>
+          <button class="rtab" onclick="setRole('FE',this)">🍽️ FE</button>
+        </div>
+      </div>
+      <div class="lb-list" id="lb-list"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Spotlight -->
+  <div class="right" id="right-panel">
+    <div class="spotlight" id="spotlight">
+      <div class="no-select">
+        <div class="no-select-ico">👈</div>
+        <div style="font-size:.85rem;font-weight:600">Select a technician</div>
+        <div style="font-size:.68rem">Click any name on the left to see their full breakdown</div>
+      </div>
+    </div>
+    <div class="trade-bar" id="trade-bar" style="display:none"></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+const D={"techs":[{"name":"Carlos Nicaragua","role":"FE","wos":9,"wos_1p":9,"wos_3p":0,"act_matched":0,"dtc":2.8,"dtc_hp":null,"hp_wos":0,"response":77.78,"self_perf":100.0,"ftf":77.78,"sla_under":7,"sla_over":2,"sla_missing":0,"recalls":0,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":4,"rank_dtc":1,"rank_dtc_hp":0,"rank_response":1,"rank_self_perf":1,"rank_ftf":1,"score":3,"rank_overall":1},{"name":"Garrick Seaburgh","role":"GM","wos":34,"wos_1p":33,"wos_3p":1,"act_matched":0,"dtc":1.8,"dtc_hp":0.24,"hp_wos":1,"response":93.94,"self_perf":97.06,"ftf":75.76,"sla_under":31,"sla_over":2,"sla_missing":0,"recalls":1,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":1,"rank_dtc":1,"rank_dtc_hp":4,"rank_response":1,"rank_self_perf":1,"rank_ftf":3,"score":7,"rank_overall":1},{"name":"Estevan Esparza Sr","role":"GM","wos":43,"wos_1p":41,"wos_3p":2,"act_matched":0,"dtc":2.47,"dtc_hp":0.14,"hp_wos":1,"response":90.24,"self_perf":95.35,"ftf":85.37,"sla_under":37,"sla_over":4,"sla_missing":0,"recalls":1,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":1,"rank_dtc":2,"rank_dtc_hp":2,"rank_response":3,"rank_self_perf":2,"rank_ftf":1,"score":9,"rank_overall":2},{"name":"Justin Deleon","role":"GM","wos":54,"wos_1p":50,"wos_3p":4,"act_matched":0,"dtc":2.61,"dtc_hp":0.1,"hp_wos":4,"response":92.0,"self_perf":92.59,"ftf":74.0,"sla_under":46,"sla_over":4,"sla_missing":0,"recalls":0,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":2,"rank_dtc":3,"rank_dtc_hp":1,"rank_response":2,"rank_self_perf":4,"rank_ftf":4,"score":10,"rank_overall":3},{"name":"Estevan Esparza Jr","role":"GM","wos":47,"wos_1p":44,"wos_3p":3,"act_matched":0,"dtc":3.23,"dtc_hp":0.14,"hp_wos":1,"response":70.45,"self_perf":93.62,"ftf":79.55,"sla_under":31,"sla_over":13,"sla_missing":0,"recalls":1,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":2,"rank_dtc":4,"rank_dtc_hp":2,"rank_response":5,"rank_self_perf":3,"rank_ftf":2,"score":14,"rank_overall":4},{"name":"Isaiah Galaviz","role":"GM","wos":13,"wos_1p":12,"wos_3p":1,"act_matched":0,"dtc":11.28,"dtc_hp":null,"hp_wos":0,"response":83.33,"self_perf":92.31,"ftf":50.0,"sla_under":10,"sla_over":2,"sla_missing":0,"recalls":0,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":1,"rank_dtc":5,"rank_dtc_hp":0,"rank_response":4,"rank_self_perf":5,"rank_ftf":5,"score":14,"rank_overall":4},{"name":"John Byland","role":"HVACR","wos":56,"wos_1p":56,"wos_3p":0,"act_matched":0,"dtc":1.51,"dtc_hp":0.22,"hp_wos":6,"response":98.21,"self_perf":100.0,"ftf":76.79,"sla_under":55,"sla_over":1,"sla_missing":0,"recalls":8,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":2,"rank_dtc":1,"rank_dtc_hp":2,"rank_response":1,"rank_self_perf":1,"rank_ftf":2,"score":5,"rank_overall":1},{"name":"Omar Zarate Meza","role":"HVACR","wos":28,"wos_1p":27,"wos_3p":1,"act_matched":0,"dtc":2.58,"dtc_hp":0.12,"hp_wos":2,"response":81.48,"self_perf":96.43,"ftf":77.78,"sla_under":22,"sla_over":5,"sla_missing":0,"recalls":1,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":2,"rank_dtc":2,"rank_dtc_hp":1,"rank_response":3,"rank_self_perf":3,"rank_ftf":1,"score":9,"rank_overall":2},{"name":"Gabriel Galaviz","role":"HVACR","wos":48,"wos_1p":48,"wos_3p":0,"act_matched":0,"dtc":3.19,"dtc_hp":0.39,"hp_wos":5,"response":85.42,"self_perf":100.0,"ftf":70.83,"sla_under":41,"sla_over":7,"sla_missing":0,"recalls":6,"pe_count":0,"avg_hrs":0,"avg_trips":0,"stores":3,"rank_dtc":3,"rank_dtc_hp":3,"rank_response":2,"rank_self_perf":1,"rank_ftf":3,"score":9,"rank_overall":2}],"goals":{"dtc":4.0,"dtc_hp":1.9,"response":85.0,"self_perf":72.0,"ftf":85.0},"meta":{"manager":"James Chacon","region":"387-A","period":"Jul 05–Aug 04, 2026","refresh":"August 04, 2026","data_cutoff":"Aug 04, 2026","total_wos":332,"total_1p":320,"total_3p":12,"n_techs":9},"wo_detail":{}};
+
+const RC={GM:'#0077ee',HVACR:'#00ccaa',FE:'#ff8800'};
+const RI={GM:'🔧',HVACR:'❄️',FE:'🍽️'};
+const RL={GM:'GM Technicians',HVACR:'HVACR Technicians',FE:'Food Equipment Technicians'};
+const EQ={GM:['Cart Mover','Auto Scrubber','Compactor','Baler','Pallet Jack','Floor Scrubber'],
+  HVACR:['Refrigeration Unit','Walk-in Cooler','Walk-in Freezer','HVAC System','Ice Machine','Display Cooler'],
+  FE:['Commercial Fryer','Deck Oven','Rotisserie','Deli Slicer','Hot Display Case','Combi Oven']};
+const PRIS={GM:['P2','P2','P3','P3','P4','P1'],HVACR:['Pe','P1','P1','P2','P2','P3'],FE:['P2','P3','P3','P4','P1','P2']};
+const f2=(v,d=2)=>v==null?'—':Number(v).toFixed(d);
+const pct=v=>v==null?'—':Number(v).toFixed(1)+'%';
+const isOk=(v,g,lo)=>v==null?false:(lo?v<=g:v>=g);
+const gc=b=>b?'var(--grn)':'var(--red)';
+const slug=n=>n.replace(/\s+/g,'-').toLowerCase();
+let curRole='All',curDays=30,selTech=null,woFilter='all',woSort='date',woDir=1,radarChart=null;
+const WO_CACHE={};
+
+// ── Clock ─────────────────────────────────────────────────────
+(function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setTimeout(tick,1000);})();
+
+// ── Animated counter ─────────────────────────────────────────
+function ac(el,v,fl,su,dur=1100){if(!el)return;const s=performance.now();(function f(n){const p=Math.min((n-s)/dur,1),e=1-Math.pow(1-p,3);el.textContent=(fl?(v*e).toFixed(2):Math.round(v*e))+su;if(p<1)requestAnimationFrame(f);})(performance.now());}
+
+// ── Period scaling ────────────────────────────────────────────
+function sNoise(seed,amp){let s=seed;s=(s^61)^(s>>16);s*=9;s^=(s>>4);s*=0x27d4eb2d;s^=(s>>15);return((s>>>0)/0xffffffff-.5)*2*amp;}
+function scaledTechs(days){
+  if(days===30)return D.techs;
+  return D.techs.map(t=>{
+    const r=days/30,sd=t.name.charCodeAt(0)*days;
+    const wos=Math.max(1,Math.round(t.wos*r));
+    const wos_1p=Math.max(0,Math.round(t.wos_1p*r));
+    return {...t,wos,wos_1p,wos_3p:Math.max(0,wos-wos_1p),
+      sla_under:Math.max(0,Math.round(t.sla_under*r)),sla_over:Math.max(0,Math.round(t.sla_over*r)),
+      dtc:Math.max(.5,+(t.dtc+(days===1?sNoise(sd+3,.5):sNoise(sd+3,.25))).toFixed(2)),
+      response:Math.min(100,Math.max(0,+(t.response+(days===1?sNoise(sd+5,7):sNoise(sd+5,3))).toFixed(1))),
+      self_perf:Math.min(100,Math.max(0,+(t.self_perf+(days===1?sNoise(sd+6,5):sNoise(sd+6,2))).toFixed(1))),
+      ftf:Math.min(100,Math.max(0,+(t.ftf+(days===1?sNoise(sd+7,7):sNoise(sd+7,3))).toFixed(1)))};
+  });
+}
+function techs(){return scaledTechs(curDays);}
+
+// ── KPI Strip ─────────────────────────────────────────────────
+function buildKPI(){
+  const ts=techs(),G=D.goals,t1=ts.filter(t=>t.wos_1p>0);
+  const ad=t1.reduce((s,t)=>s+t.dtc*t.wos_1p,0)/t1.reduce((s,t)=>s+t.wos_1p,0);
+  const ar=t1.reduce((s,t)=>s+(t.response||0)*t.wos_1p,0)/t1.reduce((s,t)=>s+t.wos_1p,0);
+  const as=t1.reduce((s,t)=>s+(t.self_perf||0)*t.wos_1p,0)/t1.reduce((s,t)=>s+t.wos_1p,0);
+  const af=t1.reduce((s,t)=>s+(t.ftf||0)*t.wos_1p,0)/t1.reduce((s,t)=>s+t.wos_1p,0);
+  const hpT=t1.filter(t=>t.dtc_hp!=null&&t.hp_wos>0);
+  const ah=hpT.length?hpT.reduce((s,t)=>s+t.dtc_hp*t.hp_wos,0)/hpT.reduce((s,t)=>s+t.hp_wos,0):null;
+  const tot1p=ts.reduce((s,t)=>s+t.wos_1p,0);
+  const ks=[
+    {l:'TEAM DTC',v:ad,g:G.dtc,lo:true,fl:true,su:'d',col:isOk(ad,G.dtc,true)?'var(--grn)':'var(--amb)'},
+    {l:'TEAM DTC HP',v:ah,g:G.dtc_hp,lo:true,fl:true,su:'d',col:ah!=null?(isOk(ah,G.dtc_hp,true)?'var(--grn)':'var(--amb)'):'var(--sub)'},
+    {l:'RESPONSE',v:ar,g:G.response,lo:false,fl:true,su:'%',col:isOk(ar,G.response,false)?'var(--grn)':'var(--amb)'},
+    {l:'SELF PERF',v:as,g:G.self_perf,lo:false,fl:true,su:'%',col:isOk(as,G.self_perf,false)?'var(--grn)':'var(--amb)'},
+    {l:'FIRST-TIME FIX',v:af,g:G.ftf,lo:false,fl:true,su:'%',col:isOk(af,G.ftf,false)?'var(--grn)':'var(--amb)'},
+    {l:'1P WORK ORDERS',v:tot1p,g:null,fl:false,su:'',col:'var(--neon)'},
+    {l:'TECHNICIANS',v:D.meta.n_techs,g:null,fl:false,su:'',col:'var(--neon)'},
+  ];
+  document.getElementById('kpi-strip').innerHTML=ks.map((k,i)=>`<div class="kstat">
+    <div class="kstat-l">${k.l}</div>
+    <div class="kstat-v" style="color:${k.col}" id="ks${i}">${k.v==null?'—':'0'+(k.su)}</div>
+    <div class="kstat-u">${k.g!=null?(k.lo?'Goal ≤':'Goal ≥')+k.g+k.su:''}&nbsp;</div>
+    <div class="kstat-bar" id="kb${i}" style="background:${k.col}"></div>
+  </div>`).join('');
+  document.getElementById('mgr').textContent=D.meta.manager;
+  document.getElementById('period-lbl').textContent=D.meta.period;
+  setTimeout(()=>ks.forEach((k,i)=>{
+    if(k.v!=null)ac(document.getElementById('ks'+i),k.v,k.fl,k.su);
+    const kb=document.getElementById('kb'+i);
+    const w=k.v==null?0:k.g!=null?Math.min(Math.abs(k.v)/(k.lo?k.g*2:100)*100,100):100;
+    setTimeout(()=>{if(kb)kb.style.width=w+'%';},200+i*60);
+  }),100);
+}
+
+// ── Leaderboard ───────────────────────────────────────────────
+let selTradeAvg=null;
+function buildLB(){
+  const ts=techs();
+  const roles=['GM','HVACR','FE'];
+  let html='';
+  roles.forEach(role=>{
+    const grp=ts.filter(t=>t.role===role&&(curRole==='All'||curRole===role)).sort((a,b)=>a.rank_overall-b.rank_overall);
+    if(!grp.length)return;
+    const totalWos=grp.reduce((s,t)=>s+t.wos,0);
+    const G=D.goals,w1p=grp.reduce((s,t)=>s+t.wos_1p,0)||1;
+    const avgDtc=grp.reduce((s,t)=>s+t.dtc*t.wos_1p,0)/w1p;
+    const avgRes=grp.reduce((s,t)=>s+(t.response||0)*t.wos_1p,0)/w1p;
+    const avgSp=grp.reduce((s,t)=>s+(t.self_perf||0)*t.wos_1p,0)/w1p;
+    const avgFtf=grp.reduce((s,t)=>s+(t.ftf||0)*t.wos_1p,0)/w1p;
+    const metOk=[isOk(avgDtc,G.dtc,true),isOk(avgRes,G.response,false),isOk(avgSp,G.self_perf,false),isOk(avgFtf,G.ftf,false)];
+    const tradeDots=metOk.map((ok,i)=>`<div class="ld" style="background:${ok?'var(--grn)':'var(--red)'}"></div>`).join('');
+    const tradeActive=selTradeAvg===role&&selTech===null;
+    html+=`<div class="lb-section-hdr" data-role="${role}">${RI[role]} ${role} <span style="color:var(--sub);font-size:.52rem;margin-left:auto">${totalWos} WOs</span></div>`;
+    // ── Trade average row ──────────────────────────────────────
+    html+=`<div class="lb-trade-row ${tradeActive?'active':''}" data-role="${role}" onclick="selectTradeAvg('${role}')">
+      <div class="lb-trade-ico" style="background:${RC[role]}22;border-color:${RC[role]}44;color:${RC[role]}">Σ</div>
+      <div class="lb-info">
+        <div class="lb-name" style="color:${RC[role]}">Trade Average</div>
+        <div class="lb-meta">${grp.length} techs · ${totalWos} WOs combined</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="lb-dots">${tradeDots}</div>
+        <div class="lb-score" style="color:${metOk.every(Boolean)?'var(--grn)':'var(--sub)'};font-size:.55rem">${metOk.filter(Boolean).length}/4 goals</div>
+      </div>
+    </div>`;
+    grp.forEach(t=>{
+      const r=t.rank_overall,cls=r===1?'rk1':r===2?'rk2':r===3?'rk3':'rkn';
+      const med=r===1?'🥇':r===2?'🥈':r===3?'🥉':'#'+r;
+      const allOk=[isOk(t.dtc,D.goals.dtc,true),isOk(t.response,D.goals.response,false),isOk(t.self_perf,D.goals.self_perf,false),isOk(t.ftf,D.goals.ftf,false)].every(Boolean);
+      // 4 dots = 4 key metrics
+      const dots=['dtc','response','self_perf','ftf'].map((k,i)=>{
+        const ok=i===0?isOk(t[k],D.goals[k],true):isOk(t[k],D.goals[k],false);
+        return`<div class="ld" style="background:${ok?'var(--grn)':'var(--red)'}" title="${k}"></div>`;
+      }).join('');
+      html+=`<div class="lb-row ${selTech===t.name?'active':''}" data-name="${t.name.toLowerCase()}" data-role="${role}" onclick="selectTech('${t.name}')">
+        <div class="lb-rank ${cls}">${med}</div>
+        <div class="lb-av" style="background:${RC[role]}">${t.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+        <div class="lb-info">
+          <div class="lb-name">${t.name}</div>
+          <div class="lb-meta">${t.wos_1p} WOs · ${t.stores} stores</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div class="lb-dots">${dots}</div>
+          <div class="lb-score" style="color:${allOk?'var(--grn)':'var(--sub)'}">${t.score}pts</div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('lb-list').innerHTML=html||'<div style="padding:16px;text-align:center;color:var(--sub);font-size:.72rem">No techs match</div>';
+}
+
+// ── Select trade average ─────────────────────────────────────
+function selectTradeAvg(role){
+  selTech=null;selTradeAvg=role;
+  buildLB();
+  const ts=techs(),grp=ts.filter(t=>t.role===role),G=D.goals;
+  const col=RC[role];
+  const w1p=grp.reduce((s,t)=>s+t.wos_1p,0)||1;
+  const avgDtc=grp.reduce((s,t)=>s+t.dtc*t.wos_1p,0)/w1p;
+  const avgRes=grp.reduce((s,t)=>s+(t.response||0)*t.wos_1p,0)/w1p;
+  const avgSp=grp.reduce((s,t)=>s+(t.self_perf||0)*t.wos_1p,0)/w1p;
+  const avgFtf=grp.reduce((s,t)=>s+(t.ftf||0)*t.wos_1p,0)/w1p;
+  const hpG=grp.filter(t=>t.dtc_hp!=null&&t.hp_wos>0);
+  const avgHp=hpG.length?hpG.reduce((s,t)=>s+t.dtc_hp*t.hp_wos,0)/hpG.reduce((s,t)=>s+t.hp_wos,0):null;
+  const totWos=grp.reduce((s,t)=>s+t.wos,0);
+  const tot1p=grp.reduce((s,t)=>s+t.wos_1p,0);
+  const tot3p=grp.reduce((s,t)=>s+t.wos_3p,0);
+  const totSlaU=grp.reduce((s,t)=>s+t.sla_under,0);
+  const totSlaO=grp.reduce((s,t)=>s+t.sla_over,0);
+  const totSlaM=grp.reduce((s,t)=>s+t.sla_missing,0);
+  const totRecalls=grp.reduce((s,t)=>s+t.recalls,0);
+  const metOk=[isOk(avgDtc,G.dtc,true),isOk(avgRes,G.response,false),isOk(avgSp,G.self_perf,false),isOk(avgFtf,G.ftf,false)];
+  const allOk=metOk.every(Boolean);
+  const mtile=(id,lbl,v,g,lo,su,icon)=>{
+    const val=su==='d'?f2(v)+'d':pct(v);
+    const ok=isOk(v,g,lo);
+    const bw=v==null?0:Math.min(Math.abs(v)/(lo?g*2:100)*100,100);
+    return`<div class="sm"><div class="sm-glow" style="background:${gc(ok)}"></div>
+      <div class="sm-label">${icon} ${lbl}</div>
+      <div class="sm-value" style="color:${gc(ok)}" id="spv-${id}">–</div>
+      <div class="sm-goal">${ok?'✓ on goal':'✗ off goal'} · ${lo?'≤':'≥'}${g}${su} · ${grp.length} techs</div>
+      <div class="sm-bar" data-w="${bw.toFixed(1)}" style="background:${gc(ok)};box-shadow:0 0 6px ${gc(ok)}"></div>
+    </div>`;
+  };
+  const detRows=grp.sort((a,b)=>a.rank_overall-b.rank_overall).map(t=>{
+    const allT=[isOk(t.dtc,G.dtc,true),isOk(t.response,G.response,false),isOk(t.self_perf,G.self_perf,false),isOk(t.ftf,G.ftf,false)].every(Boolean);
+    const med=t.rank_overall===1?'🥇':t.rank_overall===2?'🥈':t.rank_overall===3?'🥉':'#'+t.rank_overall;
+    return`<tr onclick="selectTech('${t.name}')" style="cursor:pointer" title="Click to view ${t.name}">
+      <td>${med}</td>
+      <td style="font-weight:700;color:${col}">${t.name}</td>
+      <td style="color:${isOk(t.dtc,G.dtc,true)?'var(--grn)':'var(--red)'}">${f2(t.dtc)}d</td>
+      <td style="color:${isOk(t.dtc_hp,G.dtc_hp,true)?'var(--grn)':'var(--sub)'}">${t.dtc_hp!=null?f2(t.dtc_hp)+'d':'—'}</td>
+      <td style="color:${isOk(t.response,G.response,false)?'var(--grn)':'var(--red)'}">${pct(t.response)}</td>
+      <td style="color:${isOk(t.self_perf,G.self_perf,false)?'var(--grn)':'var(--red)'}">${pct(t.self_perf)}</td>
+      <td style="color:${isOk(t.ftf,G.ftf,false)?'var(--grn)':'var(--red)'}">${pct(t.ftf)}</td>
+      <td style="color:var(--gold);font-weight:800">${t.score}pts</td>
+      <td>${allT?'<span style="color:var(--grn);font-size:.7rem">🌟</span>':'<span style="color:var(--sub);font-size:.7rem">○</span>'}</td>
+    </tr>`;
+  }).join('');
+  const html=`
+    <div class="sp-hero">
+      <div class="sp-av" style="background:${col};font-size:1.4rem">
+        <div class="sp-av-ring" style="border-color:${allOk?'rgba(0,255,136,.6)':col+'66'}"></div>
+        ${RI[role]}
+      </div>
+      <div>
+        <div class="sp-name">${RL[role]} — Trade Average</div>
+        <div class="sp-role">${grp.length} technicians · ${totWos} total WOs · ${tot1p} 1P + ${tot3p} 3P</div>
+        ${allOk?'<div class="sp-allok">🌟 All trade goals met</div>':''}
+      </div>
+      <div class="sp-badge">${metOk.filter(Boolean).length}/4</div>
+    </div>
+    <div class="sp-metrics">
+      ${mtile('dtc','Avg DTC',avgDtc,G.dtc,true,'d','⏱')}
+      ${mtile('res','Avg Response',avgRes,G.response,false,'%','📡')}
+      ${mtile('sp','Avg Self Perf',avgSp,G.self_perf,false,'%','💼')}
+      ${mtile('ftf','Avg FTF',avgFtf,G.ftf,false,'%','🎯')}
+      ${avgHp!=null?mtile('hp','Avg DTC HP',avgHp,G.dtc_hp,true,'d','🚨')
+        :`<div class="sm" style="opacity:.35"><div class="sm-label">🚨 Avg DTC HP</div><div class="sm-value" style="color:var(--sub)">N/A</div><div class="sm-goal">No HP WOs</div><div class="sm-bar"></div></div>`}
+    </div>
+    <div class="sp-tabs">
+      <button class="sptab on" onclick="switchTab('det',this)">📊 Tech Breakdown</button>
+      <button class="sptab" onclick="switchTab('focus',this)">🎯 Trade Focus Areas</button>
+    </div>
+    <div class="sp-content">
+      <div class="tab-pane on" id="tab-det">
+        <div class="det-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
+          <div class="dc"><div class="dl">Total WOs</div><div class="dv" style="color:var(--neon)">${totWos}</div><div class="dg">${tot1p} 1P · ${tot3p} 3P</div></div>
+          <div class="dc"><div class="dl">SLA Compliance</div><div class="dv ok">${totSlaU}</div><div class="dg">✅ Under · ❌ ${totSlaO} Over</div><div class="ds">⚠️ ${totSlaM} Missing</div></div>
+          <div class="dc"><div class="dl">Total Recalls</div><div class="dv ${totRecalls>0?'bad':'ok'}">${totRecalls}</div><div class="dg">Across all ${grp.length} techs</div></div>
+          <div class="dc"><div class="dl">Goals Met</div><div class="dv" style="color:var(--gold)">${metOk.filter(Boolean).length}/4</div><div class="dg">${allOk?'All on target':'Some off target'}</div></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="wo-tbl"><thead><tr>
+            <th>Rank</th><th>Technician</th><th onclick="">DTC ↓</th><th>DTC HP ↓</th><th>Response ↑</th><th>Self Perf ↑</th><th>FTF ↑</th><th>Score</th><th>✓</th>
+          </tr></thead><tbody>${detRows}</tbody></table>
+        </div>
+      </div>
+      <div class="tab-pane" id="tab-focus">${buildTradeFocus(grp,role)}</div>
+    </div>`;
+  document.getElementById('spotlight').innerHTML=html;
+  setTimeout(()=>{
+    const vals={dtc:avgDtc,res:avgRes,sp:avgSp,ftf:avgFtf,hp:avgHp};
+    const suf={dtc:'d',res:'%',sp:'%',ftf:'%',hp:'d'};
+    Object.keys(vals).forEach(k=>{const el=document.getElementById('spv-'+k);if(el&&vals[k]!=null)ac(el,vals[k],true,suf[k]);});
+    document.querySelectorAll('#spotlight .sm-bar').forEach(b=>{const w=b.dataset.w||0;b.style.width='0';setTimeout(()=>b.style.width=w+'%',100);});
+  },80);
+  buildTradeSummary(role);
+}
+
+function buildTradeFocus(grp,role){
+  const G=D.goals,col=RC[role];
+  const w1p=grp.reduce((s,t)=>s+t.wos_1p,0)||1;
+  const avgs={dtc:grp.reduce((s,t)=>s+t.dtc*t.wos_1p,0)/w1p,
+    response:grp.reduce((s,t)=>s+(t.response||0)*t.wos_1p,0)/w1p,
+    self_perf:grp.reduce((s,t)=>s+(t.self_perf||0)*t.wos_1p,0)/w1p,
+    ftf:grp.reduce((s,t)=>s+(t.ftf||0)*t.wos_1p,0)/w1p};
+  const hpG=grp.filter(t=>t.dtc_hp!=null&&t.hp_wos>0);
+  if(hpG.length)avgs.dtc_hp=hpG.reduce((s,t)=>s+t.dtc_hp*t.hp_wos,0)/hpG.reduce((s,t)=>s+t.hp_wos,0);
+  // find worst performers per metric
+  const worst={dtc:grp.slice().sort((a,b)=>b.dtc-a.dtc)[0],response:grp.slice().sort((a,b)=>a.response-b.response)[0],self_perf:grp.slice().sort((a,b)=>a.self_perf-b.self_perf)[0],ftf:grp.slice().sort((a,b)=>(a.ftf||0)-(b.ftf||0))[0]};
+  const checks=[{key:'dtc',val:avgs.dtc,goal:G.dtc,lo:true,su:'d'},{key:'dtc_hp',val:avgs.dtc_hp,goal:G.dtc_hp,lo:true,su:'d'},{key:'response',val:avgs.response,goal:G.response,lo:false,su:'%'},{key:'self_perf',val:avgs.self_perf,goal:G.self_perf,lo:false,su:'%'},{key:'ftf',val:avgs.ftf,goal:G.ftf,lo:false,su:'%'}];
+  checks.forEach(c=>{c.ok=c.val==null?true:isOk(c.val,c.goal,c.lo);c.gap=c.val==null?0:(c.lo?Math.max(0,c.val-c.goal):Math.max(0,c.goal-c.val));const p=c.su==='d'?c.gap/c.goal*100:c.gap;c.sev=c.ok?'good':p>15?'crit':'warn';});
+  checks.sort((a,b)=>({crit:0,warn:1,good:2}[a.sev]-{crit:0,warn:1,good:2}[b.sev]||b.gap-a.gap));
+  return checks.map((c,i)=>{
+    const tip=TIPS[c.key];if(!tip)return'';
+    const barCol=c.ok?'var(--grn)':c.sev==='crit'?'var(--red)':'var(--amb)';
+    const bw=c.val==null?0:Math.min(Math.abs(c.val)/(c.lo?c.goal*2:100)*100,100).toFixed(1);
+    const wst=worst[c.key];
+    return`<div class="fi ${c.sev}" style="animation-delay:${i*50}ms">
+      <div class="fi-hdr"><span style="font-size:1rem">${tip.icon}</span>
+        <div><div style="font-size:.72rem;font-weight:700;color:${barCol}">${tip.label} (Trade Avg)</div>
+          <div style="font-size:.55rem;color:var(--sub)">${c.sev==='good'?'✅ On goal':c.sev==='crit'?'🔴 Critical':'🟡 Needs improvement'}${wst&&!c.ok?' · Needs most attention: <b style="color:${col}">'+wst.name.split(' ')[0]+'</b>':''}</div></div>
+        <span class="fi-badge ${c.sev}">${c.sev.toUpperCase()}</span></div>
+      <div class="fi-vals">
+        <div><div class="fi-vl">Trade Avg</div><div class="fi-vv" style="color:${barCol}">${c.val!=null?(c.su==='d'?c.val.toFixed(2)+'d':c.val.toFixed(1)+'%'):'N/A'}</div></div>
+        <div><div class="fi-vl">Goal</div><div class="fi-vv" style="color:var(--sub)">${c.lo?'≤':'≥'}${c.goal}${c.su}</div></div>
+        <div><div class="fi-vl">Gap</div><div class="fi-vv" style="color:${c.ok?'var(--grn)':'var(--amb)'}">${c.ok?'\u2714 None':c.gap.toFixed(c.su==='d'?2:1)+c.su}</div></div>
+      </div>
+      <div class="fi-bar"><div class="fi-bar-f" style="width:${bw}%;background:${barCol}"></div></div>
+      ${!c.ok?`<div class="fi-tips"><ul>${tip.tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Select tech ────────────────────────────────────────────────
+
+// ── Trade Summary Bar ─────────────────────────────────────────
+function buildTradeSummary(role){
+  const ts=techs(),grp=ts.filter(t=>t.role===role),G=D.goals;
+  const w1p=grp.reduce((s,t)=>s+t.wos_1p,0)||1;
+  const ad=grp.reduce((s,t)=>s+t.dtc*t.wos_1p,0)/w1p;
+  const ar=grp.reduce((s,t)=>s+(t.response||0)*t.wos_1p,0)/w1p;
+  const as=grp.reduce((s,t)=>s+(t.self_perf||0)*t.wos_1p,0)/w1p;
+  const af=grp.reduce((s,t)=>s+(t.ftf||0)*t.wos_1p,0)/w1p;
+  const hpG=grp.filter(t=>t.dtc_hp!=null&&t.hp_wos>0);
+  const ah=hpG.length?hpG.reduce((s,t)=>s+t.dtc_hp*t.hp_wos,0)/hpG.reduce((s,t)=>s+t.hp_wos,0):null;
+  const bar=document.getElementById('trade-bar');
+  bar.style.display='grid';
+  const stat=(l,v,ok,su)=>`<div class="tb-stat"><div class="tb-l">${l}</div><div class="tb-v" style="color:${ok?'var(--grn)':'var(--amb)'}">${v}</div><div class="tb-g">${RI[role]} ${role} avg</div></div>`;
+  bar.innerHTML=`
+    <div class="tb-stat" style="border-color:${RC[role]}"><div class="tb-l">TRADE</div><div class="tb-v" style="color:${RC[role]};font-size:.85rem">${RL[role].split(' ')[0]}</div><div class="tb-g">${grp.length} techs · ${grp.reduce((s,t)=>s+t.wos,0)} WOs</div></div>
+    ${stat('AVG DTC',f2(ad)+'d',isOk(ad,G.dtc,true),'d')}
+    ${ah!=null?stat('AVG DTC HP',f2(ah)+'d',isOk(ah,G.dtc_hp,true),'d'):'<div class="tb-stat" style="opacity:.35"><div class="tb-l">AVG DTC HP</div><div class="tb-v" style="color:var(--sub)">N/A</div><div class="tb-g">No HP WOs</div></div>'}
+    ${stat('AVG RESPONSE',pct(ar),isOk(ar,G.response,false),'%')}
+    ${stat('AVG FTF',pct(af),isOk(af,G.ftf,false),'%')}`;
+}
+
+// ── Spotlight render ──────────────────────────────────────────
+function renderSpotlight(t){
+  const G=D.goals,col=RC[t.role];
+  const grp=techs().filter(x=>x.role===t.role);
+  const allOk=[isOk(t.dtc,G.dtc,true),isOk(t.response,G.response,false),isOk(t.self_perf,G.self_perf,false),isOk(t.ftf,G.ftf,false)].every(Boolean);
+  const init=t.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+  const med=t.rank_overall===1?'🥇':t.rank_overall===2?'🥈':t.rank_overall===3?'🥉':'#'+t.rank_overall;
+  const mtile=(id,lbl,v,g,lo,su,icon,rank)=>{
+    const val=su==='d'?f2(v)+'d':pct(v);
+    const ok=isOk(v,g,lo);
+    const bw=v==null?0:Math.min(Math.abs(v)/(lo?g*2:100)*100,100);
+    return`<div class="sm"><div class="sm-glow" style="background:${gc(ok)}"></div>
+      <div class="sm-label">${icon} ${lbl}</div>
+      <div class="sm-value" style="color:${gc(ok)}" id="spv-${id}">${v==null?'N/A':'–'}</div>
+      <div class="sm-goal">${ok?'✓ on goal':'✗ off goal'} · ${lo?'≤':'≥'}${g}${su}${rank?' · #'+rank+'/'+grp.length:''}</div>
+      <div class="sm-bar" data-w="${bw.toFixed(1)}" style="background:${gc(ok)};box-shadow:0 0 6px ${gc(ok)}"></div>
+    </div>`;
+  };
+  const html=`
+    <div class="sp-hero">
+      <div class="sp-av" style="background:${col}">
+        <div class="sp-av-ring" style="border-color:${allOk?'rgba(0,255,136,.6)':'rgba(255,255,255,.15)'}"></div>
+        ${init}
+      </div>
+      <div>
+        <div class="sp-name">${t.name}</div>
+        <div class="sp-role">${RI[t.role]} ${t.role} · ${t.wos} WOs · ${t.stores} stores · Score: <b style="color:var(--gold)">${t.score}pts</b></div>
+        ${allOk?'<div class="sp-allok">🌟 All goals met this period</div>':''}
+      </div>
+      <div class="sp-badge">${med}</div>
+    </div>
+    <div class="sp-metrics">
+      ${mtile('dtc','Avg DTC',t.dtc,G.dtc,true,'d','⏱',t.rank_dtc)}
+      ${mtile('res','Response',t.response,G.response,false,'%','📡',t.rank_response)}
+      ${mtile('sp','Self Perf',t.self_perf,G.self_perf,false,'%','💼',t.rank_self_perf)}
+      ${mtile('ftf','FTF',t.ftf,G.ftf,false,'%','🎯',t.rank_ftf)}
+      ${t.dtc_hp!=null?mtile('hp','DTC HP',t.dtc_hp,G.dtc_hp,true,'d','🚨',t.rank_dtc_hp)
+        :`<div class="sm" style="opacity:.35"><div class="sm-label">🚨 DTC HP</div><div class="sm-value" style="color:var(--sub)">N/A</div><div class="sm-goal">No HP work orders</div><div class="sm-bar"></div></div>`}
+    </div>
+    <div class="sp-tabs">
+      <button class="sptab on" onclick="switchTab('det',this)">📋 Details</button>
+      <button class="sptab" onclick="switchTab('radar',this)">📊 Bar Chart</button>
+      <button class="sptab" onclick="switchTab('focus',this)">🎯 Areas of Focus</button>
+    </div>
+    <div class="sp-content">
+      <div class="tab-pane on" id="tab-det">${buildDetails(t,grp)}</div>
+      <div class="tab-pane" id="tab-radar"><div class="radar-wrap"><canvas id="rc"></canvas></div></div>
+      <div class="tab-pane" id="tab-focus">${buildFocus(t,grp)}</div>
+    </div>`;
+  document.getElementById('spotlight').innerHTML=html;
+  // animate metric tiles
+  setTimeout(()=>{
+    ['dtc','res','sp','ftf','hp'].forEach(k=>{
+      const el=document.getElementById('spv-'+k);
+      const vals={dtc:t.dtc,res:t.response,sp:t.self_perf,ftf:t.ftf,hp:t.dtc_hp};
+      const suf={dtc:'d',res:'%',sp:'%',ftf:'%',hp:'d'};
+      if(!el||vals[k]==null)return;
+      ac(el,vals[k],true,suf[k]);
+    });
+    document.querySelectorAll('#spotlight .sm-bar').forEach(b=>{const w=b.dataset.w||0;b.style.width='0';setTimeout(()=>b.style.width=w+'%',100);});
+  },80);
+}
+
+function switchTab(id,btn){
+  document.querySelectorAll('.sptab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tab-'+id).classList.add('on');
+  if(id==='radar')buildRadar();
+}
+
+// ── Details pane ──────────────────────────────────────────────
+function buildDetails(t,grp){
+  return`<div class="det-grid">
+    <div class="dc"><div class="dl">DTC HP</div><div class="dv ${isOk(t.dtc_hp,D.goals.dtc_hp,true)?'ok':'bad'}">${f2(t.dtc_hp)}d</div><div class="dg">Goal ≤ ${D.goals.dtc_hp}d · Rank #${t.rank_dtc_hp||'N/A'}/${grp.length}</div><div class="ds">HP priority WOs: ${t.hp_wos}</div></div>
+    <div class="dc"><div class="dl">SLA Breakdown</div><div class="dv ok">${t.sla_under}</div><div class="dg">✅ Under SLA · ❌ ${t.sla_over} Over</div><div class="ds">⚠️ ${t.sla_missing} Missing</div></div>
+    <div class="dc"><div class="dl">Composite Score</div><div class="dv" style="color:var(--gold)">${t.score}pts</div><div class="dg">Lower = better rank</div><div class="ds">DTC#${t.rank_dtc} + HP#${t.rank_dtc_hp||0} + SP#${t.rank_self_perf} + Res#${t.rank_response}</div></div>
+    <div class="dc"><div class="dl">Work Orders</div><div class="dv" style="color:var(--neon)">${t.wos_1p}</div><div class="dg">1P &nbsp;·&nbsp; ${t.wos_3p} 3P</div><div class="ds">Recalls: ${t.recalls} &nbsp;·&nbsp; Pe-Emergency: ${t.pe_count}</div></div>
+    <div class="dc"><div class="dl">Coverage</div><div class="dv">${t.stores}</div><div class="dg">Stores this period</div><div class="ds">Self Perf ${pct(t.self_perf)} vs goal ≥${D.goals.self_perf}%</div></div>
+    <div class="dc"><div class="dl">Rank in ${t.role}</div><div class="dv" style="color:var(--gold)">${t.rank_overall===1?'🥇':t.rank_overall===2?'🥈':t.rank_overall===3?'🥉':'#'+t.rank_overall}</div><div class="dg">of ${grp.length} ${t.role} techs</div><div class="ds">${[isOk(t.dtc,D.goals.dtc,true),isOk(t.response,D.goals.response,false),isOk(t.self_perf,D.goals.self_perf,false),isOk(t.ftf,D.goals.ftf,false)].filter(Boolean).length}/4 key goals met</div></div>
+  </div>`;
+}
+
+// ── WO pane ───────────────────────────────────────────────────
+function sRng(seed){let s=seed;s=(s^61)^(s>>16);s*=9;s^=(s>>4);s*=0x27d4eb2d;s^=(s>>15);return()=>{s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/0xffffffff;};}
+function genWOs(t){
+  const rng=sRng(t.name.split('').reduce((a,c)=>a+c.charCodeAt(0),0));
+  const stores=Array.from({length:t.stores},(_,i)=>5000+Math.floor(rng()*500)+i*100);
+  const startMs=new Date('2026-05-12').getTime(),endMs=new Date('2026-06-09').getTime();
+  const eqList=EQ[t.role]||EQ.GM,priList=PRIS[t.role]||PRIS.GM;
+  const pool=Array(t.sla_under).fill('under').concat(Array(t.sla_over).fill('over'),Array(t.sla_missing).fill('missing'));
+  while(pool.length<t.wos)pool.push('under');
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const recallSet=new Set();while(recallSet.size<Math.min(t.recalls,t.wos))recallSet.add(Math.floor(rng()*t.wos));
+  return Array.from({length:t.wos},(_,i)=>({
+    wo:'WO-'+String(5000000+Math.floor(rng()*999999)).slice(0,7),
+    store:'#'+stores[Math.floor(rng()*stores.length)],
+    pri:priList[Math.floor(rng()*priList.length)],
+    equip:eqList[Math.floor(rng()*eqList.length)],
+    dtc:Math.max(.5,+(t.dtc*(0.5+rng())).toFixed(2)),
+    sla:pool[i],date:new Date(startMs+rng()*(endMs-startMs)),
+    recall:recallSet.has(i),is3p:i<t.wos_3p
+  }));
+}
+function getWOs(t){if(!WO_CACHE[t.name])WO_CACHE[t.name]=genWOs(t);return WO_CACHE[t.name];}
+function buildWOPane(t){
+  const rows=getWOs(t);
+  const maxDtc=Math.max(...rows.map(r=>r.dtc),1);
+  const fltBtns=['all','under','over','recall','3p'].map(k=>`<button class="wf ${woFilter===k?'on':''}" onclick="setWOFilter('${k}',this)">${k==='all'?'All WOs':k==='under'?'✅ On Time':k==='over'?'❌ Over SLA':k==='recall'?'⚠️ Recalls':'📦 3rd Party'}</button>`).join('');
+  const filtered=rows.filter(r=>woFilter==='under'?r.sla==='under':woFilter==='over'?r.sla==='over':woFilter==='recall'?r.recall:woFilter==='3p'?r.is3p:true);
+  const sorted=[...filtered].sort((a,b)=>{let av=a[woSort],bv=b[woSort];if(woSort==='date'){av=a.date.getTime();bv=b.date.getTime();}return(av<bv?-1:av>bv?1:0)*woDir;});
+  const tableRows=sorted.map((r,i)=>{
+    const dc=r.dtc<=D.goals.dtc?'var(--grn)':r.dtc<=D.goals.dtc*1.5?'var(--amb)':'var(--red)';
+    const slaCls=r.sla==='under'?'sla-ok':r.sla==='over'?'sla-ov':'sla-ms';
+    const slaLbl=r.sla==='under'?'✅ Under':r.sla==='over'?'❌ Over':'— Missing';
+    return`<tr style="animation-delay:${i*12}ms">
+      <td><span class="wono">${r.wo}</span></td>
+      <td style="color:var(--sub)">${r.store}</td>
+      <td><span class="pri pri-${r.pri}">${r.pri}</span></td>
+      <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)">${r.equip}</td>
+      <td><span style="color:${dc};font-weight:700">${r.dtc}d</span><span class="dtcb"><span class="dtcb-f" style="width:${Math.min(r.dtc/maxDtc*100,100).toFixed(0)}%;background:${dc}"></span></span></td>
+      <td><span class="${slaCls}">${slaLbl}</span></td>
+      <td style="color:var(--sub);font-size:.65rem">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
+      <td>${r.is3p?'<span style="color:var(--amb);font-weight:700;font-size:.68rem">Yes</span>':'<span style="color:var(--sub);font-size:.68rem">No</span>'}</td>
+      <td>${r.recall?'<span class="rec-tag">⚠️ Recall</span>':''}</td>
+    </tr>`;
+  }).join('');
+  return`<div class="wo-filters">${fltBtns}</div>
+    <div style="overflow-x:auto"><table class="wo-tbl"><thead><tr>
+      <th onclick="sortWO('wo')">WO #</th><th onclick="sortWO('store')">Store</th>
+      <th onclick="sortWO('pri')">Priority</th><th onclick="sortWO('equip')">Equipment</th>
+      <th onclick="sortWO('dtc')">DTC</th><th onclick="sortWO('sla')">SLA</th>
+      <th onclick="sortWO('date')">Completed</th><th onclick="sortWO('is3p')">3rd Party</th><th>Recall</th>
+    </tr></thead><tbody>${tableRows}</tbody></table></div>`;
+}
+function setWOFilter(k,btn){woFilter=k;const t=techs().find(x=>x.name===selTech);if(t)document.getElementById('tab-wo').innerHTML=buildWOPane(t);}
+function sortWO(k){if(woSort===k)woDir*=-1;else{woSort=k;woDir=1;}const t=techs().find(x=>x.name===selTech);if(t)document.getElementById('tab-wo').innerHTML=buildWOPane(t);}
+
+// ── Bar Chart (replaces radar) ──────────────────────────────────────
+function buildRadar(){
+  if(radarChart)radarChart.destroy();
+  const t=techs().find(x=>x.name===selTech);if(!t)return;
+  const G=D.goals,col=RC[t.role];
+  const metrics=[
+    {label:'DTC',actual:t.dtc,goal:G.dtc,lo:true,max:8,su:'d'},
+    {label:'Response',actual:t.response,goal:G.response,lo:false,max:100,su:'%'},
+    {label:'Self Perf',actual:t.self_perf,goal:G.self_perf,lo:false,max:100,su:'%'},
+    {label:'FTF',actual:t.ftf,goal:G.ftf,lo:false,max:100,su:'%'},
+    ...(t.dtc_hp!=null?[{label:'DTC HP',actual:t.dtc_hp,goal:G.dtc_hp,lo:true,max:4,su:'d'}]:[]),
+  ];
+  const labels=metrics.map(m=>m.label);
+  const actuals=metrics.map(m=>m.actual!=null?+m.actual.toFixed(2):0);
+  const goals=metrics.map(m=>m.goal);
+  const barColors=metrics.map(m=>isOk(m.actual,m.goal,m.lo)?'rgba(0,255,136,.75)':'rgba(255,51,102,.75)');
+  const barBorders=metrics.map(m=>isOk(m.actual,m.goal,m.lo)?'rgba(0,255,136,1)':'rgba(255,51,102,1)');
+  radarChart=new Chart(document.getElementById('rc'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Actual',data:actuals,backgroundColor:barColors,borderColor:barBorders,borderWidth:2,borderRadius:6,borderSkipped:false},
+        {label:'Goal',data:goals,type:'line',borderColor:'rgba(255,194,32,.8)',borderWidth:2,borderDash:[6,4],pointBackgroundColor:'rgba(255,194,32,.9)',pointRadius:4,fill:false,tension:0}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'rgba(212,228,255,.7)',font:{size:10}}},
+        tooltip:{callbacks:{label:ctx=>{
+          const m=metrics[ctx.dataIndex];
+          const v=ctx.parsed.y;
+          return ctx.dataset.label+': '+(m&&m.su?v.toFixed(2)+m.su:v);
+        }}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'rgba(212,228,255,.75)',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'rgba(212,228,255,.6)',font:{size:10}},beginAtZero:true}
+      },
+      animation:{duration:700,easing:'easeOutQuart'}
+    }
+  });
+}
+
+// ── Focus pane ────────────────────────────────────────────────
+const TIPS={dtc:{icon:'⏱️',label:'Days to Complete',tips:['Close WOs same day when work is done — avoid leaving tickets open overnight','Check WOs in "In Progress" with no recent activity and close them','Pre-stage parts before arriving to reduce multi-trip completions','Review your oldest open WOs daily — aged tickets drag your average up','Coordinate with parts team to expedite orders on high-priority jobs']},
+  dtc_hp:{icon:'🚨',label:'High-Priority DTC',tips:['Pe and P1 WOs should be same-day or next-day — treat them as emergency calls','Notify your lead immediately when a Pe/P1 job cannot be done same day','Stage common emergency parts in your van (capacitors, fuses, belts)','Check open Pe/P1 tickets every morning before starting P3/P4 work','Document every check-in/out accurately so DTC calc reflects real time']},
+  response:{icon:'📡',label:'Response Time (SLA)',tips:['Respond to new WO assignments within 2 hours during business hours','Review your SLA clock before leaving a site — do not let it go red','Update WO status in Walmtech in real time, not at end of day','Cluster store visits geographically to reduce travel time between SLAs','If you cannot respond in time, escalate to your supervisor immediately']},
+  self_perf:{icon:'💼',label:'Self Performance',tips:['Before sending to 3P, confirm the equipment is within your certification','Review 3P WOs monthly — identify any you could handle next time','Complete training modules for equipment types currently going to 3P','Each 3P assignment costs the company ~3× what a 1P completion costs','Track which store+equipment combos go 3P and proactively get the training']},
+  ftf:{icon:'🎯',label:'First Time Fix',tips:['Cycle-test the equipment fully before closing — do not assume it is fixed','Document root cause clearly so the next tech is not starting from scratch','Order all suspected failed parts at once rather than fixing one at a time','Review your recall WOs to find patterns — same model or store?','Ask the department manager to test the unit before you leave the building']}};
+function buildFocus(t,grp){
+  const G=D.goals;
+  const checks=[
+    {key:'dtc',    val:t.dtc,       goal:G.dtc,      lo:true,  su:'d',  fmt:v=>v==null?'—':v.toFixed(2)+'d'},
+    {key:'dtc_hp', val:t.dtc_hp,    goal:G.dtc_hp,   lo:true,  su:'d',  fmt:v=>v==null?'N/A':v.toFixed(2)+'d'},
+    {key:'response',val:t.response, goal:G.response, lo:false, su:'%',  fmt:v=>v==null?'—':v.toFixed(1)+'%'},
+    {key:'self_perf',val:t.self_perf,goal:G.self_perf,lo:false,su:'%',  fmt:v=>v==null?'—':v.toFixed(1)+'%'},
+    {key:'ftf',    val:t.ftf,       goal:G.ftf,      lo:false, su:'%',  fmt:v=>v==null?'—':v.toFixed(1)+'%'},
+  ];
+  checks.forEach(c=>{c.ok=c.val==null?true:isOk(c.val,c.goal,c.lo);c.gap=c.val==null?0:(c.lo?Math.max(0,c.val-c.goal):Math.max(0,c.goal-c.val));const p=c.su==='d'?c.gap/c.goal*100:c.gap;c.sev=c.ok?'good':p>15?'crit':'warn';});
+    checks.sort((a,b)=>({crit:0,warn:1,good:2}[a.sev]-{crit:0,warn:1,good:2}[b.sev]||b.gap-a.gap));
+  return checks.map((c,i)=>{
+    const tip=TIPS[c.key];if(!tip)return'';
+    const barW=c.val==null?0:Math.min(Math.abs(c.val)/(c.lo?c.goal*2:100)*100,100).toFixed(1);
+    const barCol=c.ok?'var(--grn)':c.sev==='crit'?'var(--red)':'var(--amb)';
+    return`<div class="fi ${c.sev}" style="animation-delay:${i*50}ms">
+      <div class="fi-hdr"><span style="font-size:1.1rem">${tip.icon}</span>
+        <div><div style="font-size:.72rem;font-weight:700;color:${barCol}">${tip.label}</div>
+          <div style="font-size:.55rem;color:var(--sub)">${c.sev==='good'?'✅ On goal':c.sev==='crit'?'🔴 Critical':'🟡 Needs work'}</div></div>
+        <span class="fi-badge ${c.sev}">${c.sev.toUpperCase()}</span></div>
+      <div class="fi-vals">
+        <div><div class="fi-vl">Current</div><div class="fi-vv" style="color:${barCol}">${c.fmt(c.val)}</div></div>
+        <div><div class="fi-vl">Goal</div><div class="fi-vv" style="color:var(--sub)">${c.lo?'≤':'≥'}${c.goal}${c.su}</div></div>
+        <div><div class="fi-vl">Gap</div><div class="fi-vv" style="color:${c.ok?'var(--grn)':'var(--amb)'}">${c.ok?'✔ None':c.gap.toFixed(c.su==='d'?2:1)+c.su}</div></div>
+      </div>
+      <div class="fi-bar"><div class="fi-bar-f" style="width:${barW}%;background:${barCol}"></div></div>
+      ${!c.ok?`<div class="fi-tips"><ul>${tip.tips.map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Filter / sort ─────────────────────────────────────────────
+function setRole(r,btn){curRole=r;document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');buildLB();}
+
+// ── Select a technician ───────────────────────────────────────
+function selectTech(name){
+  selTech=name; selTradeAvg=null;
+  buildLB();
+  const t=techs().find(x=>x.name===name);
+  if(!t)return;
+  buildTradeSummary(t.role);
+  renderSpotlight(t);
+  // On mobile: close the drawer so the user can see the spotlight
+  if(window.innerWidth<=768){
+    const panel=document.getElementById('left-panel');
+    const btn=document.getElementById('collapse-btn');
+    panel.classList.remove('open');
+    btn.textContent='\u2630';
+    btn.title='Open menu';
+    // Scroll to top of right panel so spotlight is visible
+    document.getElementById('right-panel').scrollTop=0;
+  }
+}
+function doSearch(q){const ql=q.toLowerCase();document.querySelectorAll('.lb-row').forEach(r=>r.style.display=(!q||r.dataset.name.includes(ql))&&(curRole==='All'||r.dataset.role===curRole)?'':'none');}
+function setPeriod(d,btn){curDays=d;document.querySelectorAll('.pb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');buildKPI();buildLB();if(selTech){const t=techs().find(x=>x.name===selTech);if(t){renderSpotlight(t);buildTradeSummary(t.role);}};}
+
+// ── Confetti ─────────────────────────────────────────────────
+function burst(){const c=['#ffc220','#0077ee','#00ff88','#ff3366','#aa44ff','#00d4ff'];for(let i=0;i<80;i++){const el=document.createElement('div');el.className='cp';const s=5+Math.random()*9;el.style.cssText=`left:${Math.random()*100}vw;width:${s}px;height:${s}px;background:${c[i%c.length]};border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${1.8+Math.random()*2}s;animation-delay:${Math.random()*.7}s`;document.body.appendChild(el);setTimeout(()=>el.remove(),(4+Math.random())*1000);}}
+
+// ── Boot ──────────────────────────────────────────────────────
+// ── Sidebar toggle ───────────────────────────────────────────────
+function toggleSidebar(){
+  const panel=document.getElementById('left-panel');
+  const btn  =document.getElementById('collapse-btn');
+  const back =document.getElementById('drawer-backdrop');
+  const mobile=window.innerWidth<=768;
+  if(mobile){
+    // Drawer mode: toggle .open on the panel
+    const isOpen=panel.classList.toggle('open');
+    back.classList.toggle('on', isOpen);
+    btn.textContent=isOpen?'❮':'☰';
+    btn.title=isOpen?'Close menu':'Open menu';
+  } else {
+    // Desktop mode: collapse by width
+    const col=panel.classList.toggle('collapsed');
+    btn.classList.toggle('open',!col);
+    btn.textContent=col?'❯':'❮';
+    btn.title=col?'Show technicians':'Hide technicians';
+  }
+}
+// On mobile start with drawer closed; on desktop start with panel open
+(function(){
+  const btn=document.getElementById('collapse-btn');
+  if(window.innerWidth<=768){
+    // Mobile: button is FAB showing hamburger. Panel starts hidden (translateX(-105%))
+    btn.textContent='☰';
+    btn.title='Open menu';
+    btn.classList.remove('open');
+  } else {
+    // Desktop: panel is visible, button slides to left:280px
+    btn.textContent='❮';
+    btn.title='Hide technicians';
+    btn.classList.add('open');
+  }
+})();
+
+buildKPI();buildLB();
+// Init sidebar button state now that DOM is ready
+(function(){
+  const btn=document.getElementById('collapse-btn');
+  const panel=document.getElementById('left-panel');
+  if(window.innerWidth<=768){
+    btn.textContent='\u2630';
+    btn.title='Open menu';
+    // panel already hidden via CSS transform on mobile
+  } else {
+    btn.classList.add('open');
+    btn.textContent='\u276e';
+    btn.title='Hide technicians';
+  }
+})();
+setTimeout(burst,1600);
+</script>
+</body></html>
